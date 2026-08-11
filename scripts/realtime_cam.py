@@ -21,21 +21,40 @@ CAMERA = 0                 # webcam mặc định (0). Đổi 1, 2... nếu nhi�
 
 # Load model (nếu máy có GPU thì tự dùng, không thì CPU)
 model = YOLO(MODEL_PATH)
-print("Đã load:", MODEL_PATH)
+print("Đã load:", MODEL_PATH, flush=True)
 
-cap = cv2.VideoCapture(CAMERA)
-if not cap.isOpened():
+# Lấy frame: MSMF mặc định trên Windows hay lỗi -1072873822 (không grab được).
+# Dùng DSHOW ổn định hơn; nếu fail thì fallback về mặc định.
+cap = None
+for api in (cv2.CAP_DSHOW, cv2.CAP_MSMF, 0):
+    if api == 0:
+        cap = cv2.VideoCapture(CAMERA)
+    else:
+        cap = cv2.VideoCapture(CAMERA, api)
+    if cap.isOpened():
+        print(f"Webcam mở bằng backend: {api}", flush=True)
+        break
+    cap.release()
+
+if cap is None or not cap.isOpened():
     print("Không mở được webcam. Kiểm tra chỉ số CAMERA hoặc cắm webcam.")
     exit(1)
 
+# Buffer thấp để giảm trễ (mặc định 1 hoặc cao hơn tùy backend)
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 print("Nhấn 'q' để thoát.")
+blank_frames = 0
 while True:
     ret, frame = cap.read()
     if not ret:
-        break
+        blank_frames += 1
+        if blank_frames > 30:
+            print("Quá nhiều frame trắng — webcam không trả ảnh được (kiểm tra chỉ số CAMERA).", flush=True)
+            break
+        continue
 
     # Chạy dự đoán từng khung hình
     results = model.predict(
