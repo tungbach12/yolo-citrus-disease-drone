@@ -1,8 +1,9 @@
-# Model weights & artifacts (quá lớn, tải về / tự sinh lại được)
-models/
-*.pt
-*.onnx
-*.kmodel
+# Model artifacts — commit các file model chính (best.* + yolov8n.pt) để share,
+# nhưng bỏ qua các file sinh lại được / trung gian khác trong models/
+models/*
+!models/*.pt
+!models/*.onnx
+!models/*.kmodel
 
 # Python
 __pycache__/
