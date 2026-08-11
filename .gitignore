@@ -1,0 +1,31 @@
+# Model weights & artifacts (quá lớn, tải về / tự sinh lại được)
+models/
+*.pt
+*.onnx
+*.kmodel
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.python-version
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Kaggle
+kaggle_out/
+
+# Env / secrets
+.env
+*.env
+*.local
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

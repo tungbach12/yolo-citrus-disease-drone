@@ -1,0 +1,50 @@
+names:
+- beneficial_insect
+- black_aphid
+- brown_banded_tortrix
+- citrus_anthracnose
+- citrus_aphid
+- citrus_black_spot
+- citrus_brown_spot
+- citrus_canker
+- citrus_exocortis
+- citrus_fruit_fly
+- citrus_greasy_spot
+- citrus_huanglongbing
+- citrus_leafminer
+- citrus_leprosis
+- citrus_longhorned_beetle
+- citrus_melanose
+- citrus_powdery_mildew
+- citrus_psyllid
+- citrus_red_mite
+- citrus_rot
+- citrus_rust_mite
+- citrus_scab
+- citrus_sooty_mold
+- citrus_swallowtail
+- citrus_thrips
+- citrus_whitefly
+- healthy_leaf
+- honeybee
+- lacewing
+- ladybug
+- other_disease
+- other_pest
+- other_scale_insect
+- other_slug_moth
+- red_wax_scale
+- spider
+- spring_weevil
+- thripidae
+- wasp
+nc: 39
+roboflow:
+  license: CC BY 4.0
+  project: citrus-disease-detection-yoydc-ahtka
+  url: https://universe.roboflow.com/trantungbach26-gmail-com/citrus-disease-detection-yoydc-ahtka/dataset/1
+  version: 1
+  workspace: trantungbach26-gmail-com
+test: ../test/images
+train: ../train/images
+val: ../valid/images
