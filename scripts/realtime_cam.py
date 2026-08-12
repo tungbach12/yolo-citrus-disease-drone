@@ -14,14 +14,14 @@ import cv2
 
 # ====== CẤU HÌNH ======
 MODEL_PATH = "../models/best.pt"     # đổi nếu file model nằm chỗ khác
-CONF = 0.25                # ngưỡng tin cậy
+CONF = float(__import__("os").environ.get("CONF", "0.25"))  # ngưỡng tin cậy — hạ xuống 0.15-0.20 để tăng recall
 IMGSZ = 640                # phải khớp imgsz lúc export
 CAMERA = 0                 # webcam mặc định (0). Đổi 1, 2... nếu nhiều cam
 # ======================
 
 # Load model (nếu máy có GPU thì tự dùng, không thì CPU)
 model = YOLO(MODEL_PATH)
-print("Đã load:", MODEL_PATH, flush=True)
+print(f"Đã load: {MODEL_PATH} | conf={CONF} | device={model.device}", flush=True)
 
 # Lấy frame: MSMF mặc định trên Windows hay lỗi -1072873822 (không grab được).
 # Dùng DSHOW ổn định hơn; nếu fail thì fallback về mặc định.
@@ -46,6 +46,10 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 print("Nhấn 'q' để thoát.")
+import time
+fps_last = time.time()
+fps_accum = 0
+fps_frames = 0
 blank_frames = 0
 while True:
     ret, frame = cap.read()
@@ -64,6 +68,16 @@ while True:
         verbose=False,
     )
     annotated = results[0].plot()   # vẽ khung + nhãn lên ảnh
+
+    # FPS đếm bằng khoảng thời gian thật, cập nhật mỗi ~1s
+    fps_frames += 1
+    now = time.time()
+    if now - fps_last >= 1.0:
+        fps_accum = fps_frames / (now - fps_last)
+        fps_frames = 0
+        fps_last = now
+    cv2.putText(annotated, f"FPS: {fps_accum:.1f}", (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
 
     # Hiển thị
     cv2.imshow("YOLOv8 - Webcam (q de thoat)", annotated)

@@ -13,9 +13,11 @@ from libs.PipeLine import PipeLine, ScopedTiming
 from libs.YOLO import YOLOv8
 import os, sys, gc
 
+import os as _os
+
 if __name__ == "__main__":
     # (1) ĐỔI THÀNH TÊN FILE kmodel CỦA BẠN (/sdcard/<tên>)
-    kmodel_path = "/sdcard/best.kmodel"
+    kmodel_path = _os.environ.get("KMODEL_PATH", "/sdcard/best.kmodel")
 
     # (2) ĐỔI THÀNH DANH SÁCH CLASS, ĐÚNG THỨ TỰ NHƯ data.yaml
     labels = [
@@ -34,9 +36,11 @@ if __name__ == "__main__":
     # (3) ĐỔI THÀNH imgsz LÚC EXPORT ONNX (đúng IMGSZ trong notebook, mặc định 640)
     model_input_size = [640, 640]
 
-    # Ngưỡng tin cậy / NMS (tùy chỉnh)
-    confidence_threshold = 0.3
-    nms_threshold = 0.7
+    # Ngưỡng tin cậy / NMS — có thể ghi đè bằng biến môi trường.
+    #   Hạ confidence_threshold xuống 0.15-0.20 để bắt nhiều đối tượng hơn (tăng recall).
+    #   Giữ nms_threshold thấp hơn để giảm box trùng nhau (bớt false positive).
+    confidence_threshold = float(_os.environ.get("CONF", "0.3"))
+    nms_threshold = float(_os.environ.get("NMS", "0.7"))
 
     # Hoạt động camera ở 1280x720, hiển thị lên màn 800x480
     rgb888p_size = [1280, 720]

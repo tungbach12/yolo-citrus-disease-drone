@@ -4,6 +4,9 @@ models/*
 !models/*.pt
 !models/*.onnx
 !models/*.kmodel
+# Backup/checkpoint phình repo, sinh lại được từ Kaggle — không commit
+models/last.pt
+models/best_old50.pt
 
 # Python
 __pycache__/
