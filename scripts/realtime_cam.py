@@ -13,7 +13,7 @@ from ultralytics import YOLO
 import cv2
 
 # ====== CẤU HÌNH ======
-MODEL_PATH = "../models/best.pt"     # đổi nếu file model nằm chỗ khác
+MODEL_PATH = "../models/v2/best.pt"     # đổi nếu file model nằm chỗ khác
 CONF = float(__import__("os").environ.get("CONF", "0.25"))  # ngưỡng tin cậy — hạ xuống 0.15-0.20 để tăng recall
 IMGSZ = 640                # phải khớp imgsz lúc export
 CAMERA = 0                 # webcam mặc định (0). Đổi 1, 2... nếu nhiều cam

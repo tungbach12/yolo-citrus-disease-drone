@@ -4,9 +4,10 @@ models/*
 !models/*.pt
 !models/*.onnx
 !models/*.kmodel
-# Backup/checkpoint phình repo, sinh lại được từ Kaggle — không commit
-models/last.pt
-models/best_old50.pt
+# Không commit checkpoint last.pt (sinh lại được từ Kaggle, phình repo)
+**/last.pt
+# File .md mô tả version nằm trong models/v*/ vẫn được commit
+!models/v*/
 
 # Python
 __pycache__/

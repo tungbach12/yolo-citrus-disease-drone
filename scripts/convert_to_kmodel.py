@@ -14,8 +14,8 @@ import os
 import onnx
 import nncase
 
-ONNX_PATH = "../models/best.onnx"
-KMODEL_PATH = "../models/best.kmodel"
+ONNX_PATH = "../models/v2/best.onnx"
+KMODEL_PATH = "../models/v2/best.kmodel"
 INPUT_IMGSZ = 640
 
 # (1) batch size của onnx về 1
