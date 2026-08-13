@@ -1,0 +1,58 @@
+description: Ultralytics best model trained on /kaggle/working/Citrus-Disease-Detection-1/data.yaml
+author: Ultralytics
+date: '2026-08-13T16:29:05.116235+07:00'
+version: 8.4.118
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+head: Detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: beneficial_insect
+  1: black_aphid
+  2: brown_banded_tortrix
+  3: citrus_anthracnose
+  4: citrus_aphid
+  5: citrus_black_spot
+  6: citrus_brown_spot
+  7: citrus_canker
+  8: citrus_exocortis
+  9: citrus_fruit_fly
+  10: citrus_greasy_spot
+  11: citrus_huanglongbing
+  12: citrus_leafminer
+  13: citrus_leprosis
+  14: citrus_longhorned_beetle
+  15: citrus_melanose
+  16: citrus_powdery_mildew
+  17: citrus_psyllid
+  18: citrus_red_mite
+  19: citrus_rot
+  20: citrus_rust_mite
+  21: citrus_scab
+  22: citrus_sooty_mold
+  23: citrus_swallowtail
+  24: citrus_thrips
+  25: citrus_whitefly
+  26: healthy_leaf
+  27: honeybee
+  28: lacewing
+  29: ladybug
+  30: other_disease
+  31: other_pest
+  32: other_scale_insect
+  33: other_slug_moth
+  34: red_wax_scale
+  35: spider
+  36: spring_weevil
+  37: thripidae
+  38: wasp
+args:
+  batch: 1
+  quantize: null
+channels: 3
+end2end: false
