@@ -65,6 +65,13 @@ jobs:
         echo "SIGNED_APK=${SIGNED_APK}" >> $GITHUB_OUTPUT
         echo "APK_VERSION=${DATE}.${SHA_SHORT}" >> $GITHUB_OUTPUT
 
+    - name: upload-apk-artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: citrus-apk-${{ steps.signapk.outputs.APK_VERSION }}
+        path: ${{ steps.signapk.outputs.SIGNED_APK }}
+        retention-days: 14
+
     - name: create-release
       uses: softprops/action-gh-release@v1
       with:
@@ -72,3 +79,4 @@ jobs:
         tag_name: ${{ steps.signapk.outputs.APK_VERSION }}
         name: Release ${{ steps.signapk.outputs.APK_VERSION }}
         files: ${{ steps.signapk.outputs.SIGNED_APK }}
+        draft: true
