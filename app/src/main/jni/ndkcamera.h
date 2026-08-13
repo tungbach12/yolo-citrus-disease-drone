@@ -52,9 +52,10 @@ public:
     int requested_image_h;
 
     // actual image_reader size (may differ from requested if camera
-    // does not support the exact requested resolution)
-    int actual_image_w;
-    int actual_image_h;
+    // does not support the exact requested resolution). mutable so
+    // getters (which are const) can lazy-update from AImageReader.
+    mutable int actual_image_w;
+    mutable int actual_image_h;
 
 public:
     int get_actual_width() const;
