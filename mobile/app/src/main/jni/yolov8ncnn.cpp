@@ -33,6 +33,8 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include <android/bitmap.h>
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
@@ -334,6 +336,37 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_yolov8ncnn_YOLOv8Ncnn_setOutputWindo
     __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "setOutputWindow %p", win);
 
     g_camera->set_window(win);
+
+    return JNI_TRUE;
+}
+
+// public native boolean detectBitmap(Bitmap bitmap);
+// Run detection on a still image the user picked from the gallery and render
+// the result into the output window (same surface as the camera preview).
+JNIEXPORT jboolean JNICALL Java_com_tencent_yolov8ncnn_YOLOv8Ncnn_detectBitmap(JNIEnv* env, jobject thiz, jobject bitmap)
+{
+    if (!bitmap)
+        return JNI_FALSE;
+
+    AndroidBitmapInfo info;
+    if (AndroidBitmap_getInfo(env, bitmap, &info) != ANDROID_BITMAP_RESULT_SUCCESS)
+        return JNI_FALSE;
+
+    if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888)
+        return JNI_FALSE;
+
+    void* pixels = 0;
+    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS)
+        return JNI_FALSE;
+
+    // wrap as cv::Mat (RGBA), then drop alpha -> BGR for cvtColor/imread path
+    cv::Mat rgba((int)info.height, (int)info.width, CV_8UC4, pixels);
+    cv::Mat bgr;
+    cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+
+    AndroidBitmap_unlockPixels(env, bitmap);
+
+    g_camera->render_bgrimage(bgr);
 
     return JNI_TRUE;
 }

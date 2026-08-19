@@ -15,6 +15,7 @@
 package com.tencent.yolov8ncnn;
 
 import android.content.res.AssetManager;
+import android.graphics.Bitmap;
 import android.view.Surface;
 
 public class YOLOv8Ncnn
@@ -27,6 +28,7 @@ public class YOLOv8Ncnn
     public native int[] getMaxPreviewResolution();
     public native boolean setSahiTileSize(int tileSize);
     public native boolean setOutputWindow(Surface surface);
+    public native boolean detectBitmap(Bitmap bitmap);
 
     static {
         System.loadLibrary("yolov8ncnn");

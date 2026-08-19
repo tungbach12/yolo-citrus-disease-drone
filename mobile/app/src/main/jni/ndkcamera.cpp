@@ -15,10 +15,12 @@
 #include "ndkcamera.h"
 
 #include <string>
+#include <algorithm>
 
 #include <android/log.h>
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include "mat.h"
 
@@ -327,18 +329,6 @@ bool NdkCamera::get_max_preview_size(int& w, int& h) const
 NdkCamera::~NdkCamera()
 {
     close();
-
-    if (image_reader)
-    {
-        AImageReader_delete(image_reader);
-        image_reader = 0;
-    }
-
-    if (image_reader_surface)
-    {
-        ANativeWindow_release(image_reader_surface);
-        image_reader_surface = 0;
-    }
 }
 
 int NdkCamera::open(int _camera_facing)
@@ -346,6 +336,39 @@ int NdkCamera::open(int _camera_facing)
     __android_log_print(ANDROID_LOG_WARN, "NdkCamera", "open");
 
     camera_facing = _camera_facing;
+
+    // close() deletes the image reader; (re)build it here at the requested
+    // size so each open() actually streams at the chosen resolution.
+    if (image_reader_target)
+    {
+        ACameraOutputTarget_free(image_reader_target);
+        image_reader_target = 0;
+    }
+    if (image_reader_surface)
+    {
+        ANativeWindow_release(image_reader_surface);
+        image_reader_surface = 0;
+    }
+    if (image_reader)
+    {
+        AImageReader_delete(image_reader);
+        image_reader = 0;
+    }
+
+    int w = requested_image_w > 0 ? requested_image_w : 640;
+    int h = requested_image_h > 0 ? requested_image_h : 480;
+
+    AImageReader_new(w, h, AIMAGE_FORMAT_YUV_420_888, /*maxImages*/2, &image_reader);
+
+    AImageReader_ImageListener listener;
+    listener.context = this;
+    listener.onImageAvailable = onImageAvailable;
+
+    AImageReader_setImageListener(image_reader, &listener);
+
+    AImageReader_getWindow(image_reader, &image_reader_surface);
+
+    ANativeWindow_acquire(image_reader_surface);
 
     camera_manager = ACameraManager_create();
 
@@ -493,6 +516,18 @@ void NdkCamera::close()
     {
         ACameraOutputTarget_free(image_reader_target);
         image_reader_target = 0;
+    }
+
+    if (image_reader_surface)
+    {
+        ANativeWindow_release(image_reader_surface);
+        image_reader_surface = 0;
+    }
+
+    if (image_reader)
+    {
+        AImageReader_delete(image_reader);
+        image_reader = 0;
     }
 
     if (camera_manager)
@@ -866,6 +901,85 @@ void NdkCameraWindow::on_image(const unsigned char* nv21, int nv21_width, int nv
         for (int y = 0; y < render_h; y++)
         {
             const unsigned char* ptr = rgb_render.ptr<const unsigned char>(y);
+            unsigned char* outptr = (unsigned char*)buf.bits + buf.stride * 4 * y;
+
+            int x = 0;
+#if __ARM_NEON
+            for (; x + 7 < render_w; x += 8)
+            {
+                uint8x8x3_t _rgb = vld3_u8(ptr);
+                uint8x8x4_t _rgba;
+                _rgba.val[0] = _rgb.val[0];
+                _rgba.val[1] = _rgb.val[1];
+                _rgba.val[2] = _rgb.val[2];
+                _rgba.val[3] = vdup_n_u8(255);
+                vst4_u8(outptr, _rgba);
+
+                ptr += 24;
+                outptr += 32;
+            }
+#endif // __ARM_NEON
+            for (; x < render_w; x++)
+            {
+                outptr[0] = ptr[0];
+                outptr[1] = ptr[1];
+                outptr[2] = ptr[2];
+                outptr[3] = 255;
+
+                ptr += 3;
+                outptr += 4;
+            }
+        }
+    }
+
+    ANativeWindow_unlockAndPost(win);
+}
+
+void NdkCameraWindow::render_bgrimage(const cv::Mat& bgr)
+{
+    // No output window set (SurfaceView not ready yet) -> nothing to draw to.
+    if (!win)
+        return;
+
+    if (bgr.empty())
+        return;
+
+    // BGR (Android Bitmap is RGBA; caller converts) -> RGB for YOLO + drawing.
+    cv::Mat rgb;
+    cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
+
+    // Phone photos can be 50MP+; cap the long edge so detection stays fast and
+    // doesn't OOM. 1280 keeps small leaves (the model's target) visible.
+    const int long_edge = std::max(rgb.cols, rgb.rows);
+    if (long_edge > 1280)
+    {
+        const double scale = 1280.0 / long_edge;
+        cv::Mat resized;
+        cv::resize(rgb, resized, cv::Size(), scale, scale, cv::INTER_AREA);
+        rgb = resized;
+    }
+
+    // detection + boxes (MyNdkCamera::on_image_render, the same path the camera
+    // preview uses after rotating). Then draw the result to the window.
+    on_image_render(rgb);
+
+    if (rgb.cols <= 0 || rgb.rows <= 0)
+        return;
+
+    const int render_w = rgb.cols;
+    const int render_h = rgb.rows;
+
+    ANativeWindow_setBuffersGeometry(win, render_w, render_h, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM);
+
+    ANativeWindow_Buffer buf;
+    if (ANativeWindow_lock(win, &buf, NULL) != 0)
+        return;
+
+    if (buf.format == AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM || buf.format == AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM)
+    {
+        for (int y = 0; y < render_h; y++)
+        {
+            const unsigned char* ptr = rgb.ptr<const unsigned char>(y);
             unsigned char* outptr = (unsigned char*)buf.bits + buf.stride * 4 * y;
 
             int x = 0;

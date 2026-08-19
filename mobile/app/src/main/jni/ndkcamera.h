@@ -85,6 +85,11 @@ public:
 
     void set_window(ANativeWindow* win);
 
+    // Render a still BGR image (e.g. from a gallery photo) through the same
+    // detection + output-window path as the camera preview. Lets the app run
+    // detection on a user-picked photo. No-op if no output window is set.
+    void render_bgrimage(const cv::Mat& bgr);
+
     virtual void on_image_render(cv::Mat& rgb) const;
 
     virtual void on_image(const unsigned char* nv21, int nv21_width, int nv21_height) const;

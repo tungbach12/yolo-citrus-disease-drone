@@ -16,8 +16,12 @@ package com.tencent.yolov8ncnn;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.PixelFormat;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Surface;
@@ -33,9 +37,12 @@ import android.widget.Toast;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 
+import java.io.InputStream;
+
 public class MainActivity extends Activity implements SurfaceHolder.Callback
 {
     public static final int REQUEST_CAMERA = 100;
+    public static final int REQUEST_PICK_IMAGE = 101;
 
     private YOLOv8Ncnn yolov8ncnn = new YOLOv8Ncnn();
     private int facing = 0;
@@ -56,6 +63,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
 
     // whether the default "Max" resolution was already applied on first resume
     private boolean firstMaxApplied = false;
+
+    // when true, a still image is shown on the surface instead of the live
+    // camera preview. The camera is closed so it doesn't overwrite the surface.
+    private boolean imageMode = false;
 
     private static final int[] SAHI_TILES = {0, 320};
 
@@ -82,11 +93,26 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
 
                 int new_facing = 1 - facing;
 
+                imageMode = false;
                 yolov8ncnn.closeCamera();
 
                 yolov8ncnn.openCamera(new_facing);
 
                 facing = new_facing;
+            }
+        });
+
+        Button buttonUpload = (Button) findViewById(R.id.buttonUpload);
+        buttonUpload.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View arg0) {
+                // pause the camera so it doesn't draw over the picked photo
+                imageMode = true;
+                yolov8ncnn.closeCamera();
+
+                Intent intent = new Intent(Intent.ACTION_PICK);
+                intent.setType("image/*");
+                startActivityForResult(intent, REQUEST_PICK_IMAGE);
             }
         });
 
@@ -257,6 +283,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
             ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA}, REQUEST_CAMERA);
         }
 
+        // showing a picked photo: keep the camera off so it doesn't overwrite it
+        if (imageMode)
+            return;
+
         if (!firstMaxApplied)
         {
             // first launch: default resolution "Max" = highest the camera will
@@ -280,5 +310,65 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
         super.onPause();
 
         yolov8ncnn.closeCamera();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_PICK_IMAGE)
+        {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null)
+            {
+                Uri uri = data.getData();
+                try
+                {
+                    InputStream is = getContentResolver().openInputStream(uri);
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inSampleSize = 1;
+                    Bitmap bmp = BitmapFactory.decodeStream(is, null, opts);
+                    if (is != null) is.close();
+
+                    if (bmp != null)
+                    {
+                        // ensure RGBA_8888 for the JNI bridge
+                        if (bmp.getConfig() != Bitmap.Config.ARGB_8888)
+                            bmp = bmp.copy(Bitmap.Config.ARGB_8888, false);
+
+                        yolov8ncnn.detectBitmap(bmp);
+                        return;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.e("MainActivity", "pick image failed", e);
+                }
+                Toast.makeText(this, "Không đọc được ảnh", Toast.LENGTH_LONG).show();
+                // fall back to camera
+                imageMode = false;
+                onResumeCamera();
+            }
+            else
+            {
+                // cancelled -> back to live camera
+                imageMode = false;
+                onResumeCamera();
+            }
+        }
+    }
+
+    // reopen the live camera (used after leaving image mode)
+    private void onResumeCamera()
+    {
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED)
+            return;
+        yolov8ncnn.openCamera(facing);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
+    {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 }
