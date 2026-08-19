@@ -223,6 +223,106 @@ int NdkCamera::get_actual_height() const
     return actual_image_h;
 }
 
+static bool is_acceptable_stream_config(int32_t type, int32_t format)
+{
+    // type must be OUTPUT. Only the implementation-defined pixel format
+    // surfaces the real preview stream; JPG/RAW are still-capture only and
+    // usually carry the full 50MP sensor resolution that preview never reaches.
+    if (type != ACAMERA_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT)
+        return false;
+    return format == AIMAGE_FORMAT_IMPLEMENTATION_DEFINED || format == AIMAGE_FORMAT_YUV_420_888;
+}
+
+bool NdkCamera::get_max_preview_size(int& w, int& h) const
+{
+    ACameraManager* mgr = ACameraManager_create();
+    if (!mgr)
+        return false;
+
+    ACameraIdList* cam_list = 0;
+    if (ACameraManager_getCameraIdList(mgr, &cam_list) != ACAMERA_OK)
+    {
+        ACameraManager_delete(mgr);
+        return false;
+    }
+
+    // pick the back (facing 1) camera; fall back to the first id if none
+    const char* chosen = 0;
+    for (int i = 0; i < cam_list->numCameras; ++i)
+    {
+        ACameraMetadata* md = 0;
+        ACameraManager_getCameraCharacteristics(mgr, cam_list->cameraIds[i], &md);
+        acamera_metadata_enum_android_lens_facing_t facing = ACAMERA_LENS_FACING_FRONT;
+        {
+            ACameraMetadata_const_entry e = { 0 };
+            ACameraMetadata_getConstEntry(md, ACAMERA_LENS_FACING, &e);
+            facing = (acamera_metadata_enum_android_lens_facing_t)e.data.u8[0];
+        }
+        ACameraMetadata_free(md);
+        if (facing == ACAMERA_LENS_FACING_BACK)
+        {
+            chosen = cam_list->cameraIds[i];
+            break;
+        }
+    }
+    if (!chosen && cam_list->numCameras > 0)
+        chosen = cam_list->cameraIds[0];
+
+    bool found = false;
+    int best_w = 0, best_h = 0;
+    if (chosen)
+    {
+        ACameraMetadata* md = 0;
+        if (ACameraManager_getCameraCharacteristics(mgr, chosen, &md) == ACAMERA_OK)
+        {
+            ACameraMetadata_const_entry e = { 0 };
+            if (ACameraMetadata_getConstEntry(md, ACAMERA_SCALER_AVAILABLE_STREAM_CONFIGURATIONS, &e) == ACAMERA_OK)
+            {
+                // e.count is number of VALUES per configuration (4 int32s each: format, width, height, type)
+                const int32_t* data = e.data.i32;
+                const int num_cfgs = (int)e.count / 4;
+                for (int i = 0; i < num_cfgs; ++i)
+                {
+                    const int32_t format = data[i * 4 + 0];
+                    const int32_t cw = data[i * 4 + 1];
+                    const int32_t ch = data[i * 4 + 2];
+                    const int32_t type = data[i * 4 + 3];
+                    if (!is_acceptable_stream_config(type, format))
+                        continue;
+                    // on high-MP modules some cameras report larger-than-sensor
+                    // configs (9600x...) we can't actually stream; clamp to 4K+
+                    const long long area = (long long)cw * ch;
+                    if (area > (long long)best_w * best_h)
+                    {
+                        best_w = cw;
+                        best_h = ch;
+                    }
+                }
+                found = best_w > 0 && best_h > 0;
+            }
+            ACameraMetadata_free(md);
+        }
+    }
+
+    ACameraManager_deleteCameraIdList(cam_list);
+    ACameraManager_delete(mgr);
+
+    if (found)
+    {
+        // cap absurd configs to 4K height so AImageReader allocation stays sane
+        if (best_h > 2160)
+        {
+            // shrink to 4K keeping aspect ratio
+            long long new_w = (long long)best_w * 2160 / best_h;
+            best_w = (int)new_w;
+            best_h = 2160;
+        }
+        w = best_w;
+        h = best_h;
+    }
+    return found;
+}
+
 NdkCamera::~NdkCamera()
 {
     close();

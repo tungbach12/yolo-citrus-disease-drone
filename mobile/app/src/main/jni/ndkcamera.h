@@ -61,6 +61,10 @@ public:
     int get_actual_width() const;
     int get_actual_height() const;
 
+    // query max preview stream size for the back camera (throws away the
+    // DTS that high-res sensors expose so we get the true preview stream)
+    bool get_max_preview_size(int& w, int& h) const;
+
 private:
     ACameraManager* camera_manager;
     ACameraDevice* camera_device;

@@ -297,6 +297,23 @@ JNIEXPORT jintArray JNICALL Java_com_tencent_yolov8ncnn_YOLOv8Ncnn_getResolution
     return result;
 }
 
+// public native int[] getMaxPreviewResolution() -> [width, height] of the
+// highest preview stream size the back camera supports (for 50MP sensors the
+// phone still only streams ~4K; 50MP is still-capture only).
+JNIEXPORT jintArray JNICALL Java_com_tencent_yolov8ncnn_YOLOv8Ncnn_getMaxPreviewResolution(JNIEnv* env, jobject thiz)
+{
+    int w = 0, h = 0;
+    bool ok = g_camera ? g_camera->get_max_preview_size(w, h) : false;
+
+    jintArray result = env->NewIntArray(2);
+    if (result)
+    {
+        jint vals[2] = {ok ? (jint)w : 0, ok ? (jint)h : 0};
+        env->SetIntArrayRegion(result, 0, 2, vals);
+    }
+    return result;
+}
+
 // public native boolean setSahiTileSize(int tileSize);
 // 0 = auto (=640, full-frame equivalent), 320 = smaller tiles for small objects.
 JNIEXPORT jboolean JNICALL Java_com_tencent_yolov8ncnn_YOLOv8Ncnn_setSahiTileSize(JNIEnv* env, jobject thiz, jint tileSize)

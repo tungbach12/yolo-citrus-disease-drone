@@ -45,14 +45,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
     // sahi: 0=off (full-frame), 1=on (SAHI 640/0.25/IOS NMS 0.5)
     private int current_sahi = 0;
     private int current_cpugpu = 0;
-    // resolution: 0=640x480, 1=1280x720, 2=1920x1080, 3=2560x1440
-    private int current_resolution = 1;
+    // resolution: 0="Max" (query camera), 1=640x480, 2=1280x720, 3=1920x1080, 4=2560x1440
+    private int current_resolution = 0;
 
-    private static final int[] RES_W = {640, 1280, 1920, 2560};
-    private static final int[] RES_H = {480, 720, 1080, 1440};
+    private static final int[] RES_W = {0, 640, 1280, 1920, 2560};
+    private static final int[] RES_H = {0, 480, 720, 1080, 1440};
 
     // sahi tile: 0=auto(640), 1=320
     private int current_sahi_tile = 0;
+
+    // whether the default "Max" resolution was already applied on first resume
+    private boolean firstMaxApplied = false;
 
     private static final int[] SAHI_TILES = {0, 320};
 
@@ -168,18 +171,44 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
                 if (position != current_resolution)
                 {
                     current_resolution = position;
-                    yolov8ncnn.setResolution(RES_W[position], RES_H[position]);
-
-                    // query actual camera size (may differ from requested)
-                    int[] actual = yolov8ncnn.getResolution();
-                    if (actual != null && actual.length == 2 && actual[0] > 0 && actual[1] > 0)
+                    if (position == 0)
                     {
-                        boolean ok = actual[0] == RES_W[position] && actual[1] == RES_H[position];
-                        String msg = ok
-                            ? "Đã chuyển sang " + actual[0] + "x" + actual[1]
-                            : "Lỗi: yêu cầu " + RES_W[position] + "x" + RES_H[position] + " → camera " + actual[0] + "x" + actual[1];
-                        Toast.makeText(MainActivity.this, msg,
-                            ok ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG).show();
+                        // "Max" — query the back camera's highest preview stream size
+                        int[] max = yolov8ncnn.getMaxPreviewResolution();
+                        if (max != null && max.length == 2 && max[0] > 0 && max[1] > 0)
+                        {
+                            boolean ok = yolov8ncnn.setResolution(max[0], max[1]);
+                            int[] actual = yolov8ncnn.getResolution();
+                            if (actual != null && actual.length == 2 && actual[0] > 0 && actual[1] > 0)
+                            {
+                                String msg = ok
+                                    ? "Max: " + actual[0] + "x" + actual[1]
+                                    : "Max " + actual[0] + "x" + actual[1];
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                            }
+                        }
+                        else
+                        {
+                            Toast.makeText(MainActivity.this, "Không query được max, dùng 1080p",
+                                Toast.LENGTH_LONG).show();
+                            yolov8ncnn.setResolution(1920, 1080);
+                        }
+                    }
+                    else
+                    {
+                        yolov8ncnn.setResolution(RES_W[position], RES_H[position]);
+
+                        // query actual camera size (may differ from requested)
+                        int[] actual = yolov8ncnn.getResolution();
+                        if (actual != null && actual.length == 2 && actual[0] > 0 && actual[1] > 0)
+                        {
+                            boolean ok = actual[0] == RES_W[position] && actual[1] == RES_H[position];
+                            String msg = ok
+                                ? "Đã chuyển sang " + actual[0] + "x" + actual[1]
+                                : "Lỗi: yêu cầu " + RES_W[position] + "x" + RES_H[position] + " → camera " + actual[0] + "x" + actual[1];
+                            Toast.makeText(MainActivity.this, msg,
+                                ok ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG).show();
+                        }
                     }
                 }
             }
@@ -226,6 +255,20 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
         if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED)
         {
             ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA}, REQUEST_CAMERA);
+        }
+
+        if (!firstMaxApplied)
+        {
+            // first launch: default resolution "Max" = highest the camera will
+            // stream. setResolution() also (re)opens the camera, so skip the
+            // openCamera() below to avoid opening the device twice.
+            firstMaxApplied = true;
+            int[] max = yolov8ncnn.getMaxPreviewResolution();
+            if (max != null && max.length == 2 && max[0] > 0 && max[1] > 0)
+            {
+                yolov8ncnn.setResolution(max[0], max[1]);
+                return;
+            }
         }
 
         yolov8ncnn.openCamera(facing);
