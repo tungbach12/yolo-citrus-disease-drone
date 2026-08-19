@@ -230,7 +230,8 @@ static bool is_acceptable_stream_config(int32_t type, int32_t format)
     // usually carry the full 50MP sensor resolution that preview never reaches.
     if (type != ACAMERA_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT)
         return false;
-    return format == AIMAGE_FORMAT_IMPLEMENTATION_DEFINED || format == AIMAGE_FORMAT_YUV_420_888;
+    // AIMAGE_FORMAT_IMPLEMENTATION_DEFINED = 0x22; not always exposed in NDK headers
+    return format == 0x22 || format == AIMAGE_FORMAT_YUV_420_888;
 }
 
 bool NdkCamera::get_max_preview_size(int& w, int& h) const
