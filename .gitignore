@@ -6,6 +6,7 @@ models/*
 !models/*.kmodel
 # Không commit checkpoint last.pt (sinh lại được từ Kaggle, phình repo)
 **/last.pt
+**/last.zip
 # File .md mô tả version nằm trong models/v*/ vẫn được commit
 !models/v*/
 
@@ -23,6 +24,7 @@ env/
 
 # Kaggle
 kaggle_out/
+.freebuff/
 
 # Env / secrets
 .env
